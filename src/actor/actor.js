@@ -1,10 +1,11 @@
-import { ObjectId } from "mongodb";
+import mongoose from "mongoose";
 
-export const Actor = {
-  _id: ObjectId,
-  idPelicula: String,
-  nombre: String,
-  edad: Number,
-  estaRetirado: Boolean,
-  premios: Array
-};
+const actorSchema = new mongoose.Schema({
+  idPelicula: { type: mongoose.Schema.Types.ObjectId, ref: "Pelicula", required: true },
+  nombre: { type: String, required: true },
+  edad: { type: Number, required: true },
+  estaRetirado: { type: Boolean, required: true },
+  premios: { type: [String], required: true }
+});
+
+export const Actor = mongoose.model("Actor", actorSchema);

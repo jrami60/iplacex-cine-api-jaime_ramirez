@@ -1,59 +1,36 @@
-import { ObjectId } from "mongodb";
-import client from "../common/db.js";
 import { Pelicula } from "./pelicula.js";
-
-const peliculaCollection = {
-  db: "cine-db",
-  collection: "peliculas"
-};
 
 // INSERTAR PELÍCULA
 export async function handleInsertPeliculaRequest(req, res) {
   try {
-    const body = req.body;
+    const { nombre, géneros, anioEstreno } = req.body;
 
-    const pelicula = {
-      nombre: body.nombre,
-      géneros: body.géneros,
-      anioEstreno: body.anioEstreno
-    };
+    const nuevaPelicula = new Pelicula({
+      nombre,
+      géneros,
+      anioEstreno
+    });
 
-    await client
-      .db(peliculaCollection.db)
-      .collection(peliculaCollection.collection)
-      .insertOne(pelicula)
-      .then((data) => {
-        if (!data || !data.insertedId) {
-          return res.status(500).json({ message: "No se pudo insertar la película" });
-        }
+    const data = await nuevaPelicula.save();
 
-        return res.status(201).json({
-          message: "Película creada correctamente",
-          id: data.insertedId
-        });
-      })
-      .catch((e) => {
-        return res.status(500).json({ message: "Error al insertar película", error: e.message });
-      });
+    return res.status(201).json({
+      message: "Película creada correctamente",
+      id: data._id
+    });
 
   } catch (e) {
-    return res.status(500).json({ message: "Error inesperado", error: e.message });
+    return res.status(500).json({ message: "Error al insertar película", error: e.message });
   }
 }
 
 // OBTENER TODAS LAS PELÍCULAS
 export async function handleGetPeliculasRequest(req, res) {
   try {
-    await client
-      .db(peliculaCollection.db)
-      .collection(peliculaCollection.collection)
-      .find()
-      .toArray()
-      .then((data) => res.status(200).json(data))
-      .catch((e) => res.status(500).json({ message: "Error al obtener películas", error: e.message }));
+    const data = await Pelicula.find();
+    return res.status(200).json(data);
 
   } catch (e) {
-    return res.status(500).json({ message: "Error inesperado", error: e.message });
+    return res.status(500).json({ message: "Error al obtener películas", error: e.message });
   }
 }
 
@@ -61,26 +38,17 @@ export async function handleGetPeliculasRequest(req, res) {
 export async function handleGetPeliculaByIdRequest(req, res) {
   try {
     const { id } = req.params;
-    let oid;
 
-    try {
-      oid = ObjectId.createFromHexString(id);
-    } catch {
-      return res.status(400).json({ message: "Id mal formado" });
+    const data = await Pelicula.findById(id);
+
+    if (!data) {
+      return res.status(404).json({ message: "Película no encontrada" });
     }
 
-    await client
-      .db(peliculaCollection.db)
-      .collection(peliculaCollection.collection)
-      .findOne({ _id: oid })
-      .then((data) => {
-        if (!data) return res.status(404).json({ message: "Película no encontrada" });
-        return res.status(200).json(data);
-      })
-      .catch((e) => res.status(500).json({ message: "Error al buscar película", error: e.message }));
+    return res.status(200).json(data);
 
   } catch (e) {
-    return res.status(500).json({ message: "Error inesperado", error: e.message });
+    return res.status(400).json({ message: "Id mal formado o error", error: e.message });
   }
 }
 
@@ -88,38 +56,22 @@ export async function handleGetPeliculaByIdRequest(req, res) {
 export async function handleUpdatePeliculaByIdRequest(req, res) {
   try {
     const { id } = req.params;
-    const body = req.body;
-    let oid;
+    const { nombre, géneros, anioEstreno } = req.body;
 
-    try {
-      oid = ObjectId.createFromHexString(id);
-    } catch {
-      return res.status(400).json({ message: "Id mal formado" });
+    const data = await Pelicula.findByIdAndUpdate(
+      id,
+      { nombre, géneros, anioEstreno },
+      { new: true }
+    );
+
+    if (!data) {
+      return res.status(404).json({ message: "Película no encontrada" });
     }
 
-    const query = {
-      $set: {
-        nombre: body.nombre,
-        géneros: body.géneros,
-        anioEstreno: body.anioEstreno
-      }
-    };
-
-    await client
-      .db(peliculaCollection.db)
-      .collection(peliculaCollection.collection)
-      .updateOne({ _id: oid }, query)
-      .then((data) => {
-        if (!data || data.modifiedCount === 0) {
-          return res.status(404).json({ message: "Película no encontrada o no actualizada" });
-        }
-
-        return res.status(200).json({ message: "Película actualizada correctamente" });
-      })
-      .catch((e) => res.status(500).json({ message: "Error al actualizar película", error: e.message }));
+    return res.status(200).json({ message: "Película actualizada correctamente" });
 
   } catch (e) {
-    return res.status(500).json({ message: "Error inesperado", error: e.message });
+    return res.status(400).json({ message: "Id mal formado o error", error: e.message });
   }
 }
 
@@ -127,29 +79,17 @@ export async function handleUpdatePeliculaByIdRequest(req, res) {
 export async function handleDeletePeliculaByIdRequest(req, res) {
   try {
     const { id } = req.params;
-    let oid;
 
-    try {
-      oid = ObjectId.createFromHexString(id);
-    } catch {
-      return res.status(400).json({ message: "Id mal formado" });
+    const data = await Pelicula.findByIdAndDelete(id);
+
+    if (!data) {
+      return res.status(404).json({ message: "Película no encontrada" });
     }
 
-    await client
-      .db(peliculaCollection.db)
-      .collection(peliculaCollection.collection)
-      .deleteOne({ _id: oid })
-      .then((data) => {
-        if (!data || data.deletedCount === 0) {
-          return res.status(404).json({ message: "Película no encontrada o no eliminada" });
-        }
-
-        return res.status(200).json({ message: "Película eliminada correctamente" });
-      })
-      .catch((e) => res.status(500).json({ message: "Error al eliminar película", error: e.message }));
+    return res.status(200).json({ message: "Película eliminada correctamente" });
 
   } catch (e) {
-    return res.status(500).json({ message: "Error inesperado", error: e.message });
+    return res.status(400).json({ message: "Id mal formado o error", error: e.message });
   }
 }
 

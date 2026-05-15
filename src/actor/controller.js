@@ -1,101 +1,51 @@
-import { ObjectId } from "mongodb";
-import client from "../common/db.js";
 import { Actor } from "./actor.js";
-
-const actorCollection = {
-  db: "cine-db",
-  collection: "actores"
-};
-
-const peliculaCollection = {
-  db: "cine-db",
-  collection: "peliculas"
-};
+import { Pelicula } from "../pelicula/pelicula.js";
 
 // INSERTAR ACTOR
 export async function handleInsertActorRequest(req, res) {
   try {
-    const body = req.body;
+    const { nombrePelicula, nombre, edad, estaRetirado, premios } = req.body;
 
-    // Validar que venga el nombre de la película
-    if (!body.nombrePelicula) {
-      return res.status(400).json({
-        message: "Debe indicar el nombre de la película"
-      });
+    if (!nombrePelicula) {
+      return res.status(400).json({ message: "Debe indicar el nombre de la película" });
     }
 
-    // Buscar la película por nombre
-    const pelicula = await client
-      .db(peliculaCollection.db)
-      .collection(peliculaCollection.collection)
-      .findOne({ nombre: body.nombrePelicula });
+    // Buscar película por nombre
+    const pelicula = await Pelicula.findOne({ nombre: nombrePelicula });
 
     if (!pelicula) {
-      return res.status(404).json({
-        message: "La película indicada no existe"
-      });
+      return res.status(404).json({ message: "La película indicada no existe" });
     }
 
     // Crear actor
-    const actor = {
-      idPelicula: pelicula._id.toHexString(),
-      nombre: body.nombre,
-      edad: body.edad,
-      estaRetirado: body.estaRetirado,
-      premios: body.premios
-    };
+    const nuevoActor = new Actor({
+      idPelicula: pelicula._id,
+      nombre,
+      edad,
+      estaRetirado,
+      premios
+    });
 
-    await client
-      .db(actorCollection.db)
-      .collection(actorCollection.collection)
-      .insertOne(actor)
-      .then((data) => {
-        if (!data || !data.insertedId) {
-          return res.status(500).json({
-            message: "No se pudo insertar el actor"
-          });
-        }
+    const data = await nuevoActor.save();
 
-        return res.status(201).json({
-          message: "Actor creado correctamente",
-          id: data.insertedId
-        });
-      })
-      .catch((e) => {
-        return res.status(500).json({
-          message: "Error al insertar actor",
-          error: e.message
-        });
-      });
+    return res.status(201).json({
+      message: "Actor creado correctamente",
+      id: data._id
+    });
 
   } catch (e) {
-    return res.status(500).json({
-      message: "Error inesperado al insertar actor",
-      error: e.message
-    });
+    return res.status(500).json({ message: "Error al insertar actor", error: e.message });
   }
 }
 
 // OBTENER TODOS LOS ACTORES
 export async function handleGetActoresRequest(req, res) {
   try {
-    await client
-      .db(actorCollection.db)
-      .collection(actorCollection.collection)
-      .find()
-      .toArray()
-      .then((data) => res.status(200).json(data))
-      .catch((e) =>
-        res.status(500).json({
-          message: "Error al obtener actores",
-          error: e.message
-        })
-      );
+    const data = await Actor.find();
+    return res.status(200).json(data);
+
   } catch (e) {
-    return res.status(500).json({
-      message: "Error inesperado",
-      error: e.message
-    });
+    return res.status(500).json({ message: "Error al obtener actores", error: e.message });
   }
 }
 
@@ -103,35 +53,17 @@ export async function handleGetActoresRequest(req, res) {
 export async function handleGetActorByIdRequest(req, res) {
   try {
     const { id } = req.params;
-    let oid;
 
-    try {
-      oid = ObjectId.createFromHexString(id);
-    } catch {
-      return res.status(400).json({ message: "Id mal formado" });
+    const data = await Actor.findById(id);
+
+    if (!data) {
+      return res.status(404).json({ message: "Actor no encontrado" });
     }
 
-    await client
-      .db(actorCollection.db)
-      .collection(actorCollection.collection)
-      .findOne({ _id: oid })
-      .then((data) => {
-        if (!data) {
-          return res.status(404).json({ message: "Actor no encontrado" });
-        }
-        return res.status(200).json(data);
-      })
-      .catch((e) =>
-        res.status(500).json({
-          message: "Error al buscar actor",
-          error: e.message
-        })
-      );
+    return res.status(200).json(data);
+
   } catch (e) {
-    return res.status(500).json({
-      message: "Error inesperado",
-      error: e.message
-    });
+    return res.status(400).json({ message: "Id mal formado o error", error: e.message });
   }
 }
 
@@ -139,31 +71,13 @@ export async function handleGetActorByIdRequest(req, res) {
 export async function handleGetActoresByPeliculaIdRequest(req, res) {
   try {
     const { pelicula } = req.params;
-    let oid;
 
-    try {
-      oid = ObjectId.createFromHexString(pelicula);
-    } catch {
-      return res.status(400).json({ message: "Id de película mal formado" });
-    }
+    const data = await Actor.find({ idPelicula: pelicula });
 
-    await client
-      .db(actorCollection.db)
-      .collection(actorCollection.collection)
-      .find({ idPelicula: oid.toHexString() })
-      .toArray()
-      .then((data) => res.status(200).json(data))
-      .catch((e) =>
-        res.status(500).json({
-          message: "Error al obtener actores por película",
-          error: e.message
-        })
-      );
+    return res.status(200).json(data);
+
   } catch (e) {
-    return res.status(500).json({
-      message: "Error inesperado",
-      error: e.message
-    });
+    return res.status(400).json({ message: "Id mal formado o error", error: e.message });
   }
 }
 

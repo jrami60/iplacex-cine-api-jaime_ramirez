@@ -1,13 +1,11 @@
-import { MongoClient, ServerApiVersion } from "mongodb";
+import mongoose from "mongoose";
 
-const uri = "mongodb+srv://jaimeramirez765_db_user:D4pdXMsuoLdUQWz2@eva-u3-express.jhwznny.mongodb.net/?appName=eva-u3-express";
-
-const client = new MongoClient(uri, {
-  serverApi: {
-    version: ServerApiVersion.v1,
-    strict: true,
-    deprecationErrors: true
+export const connectDB = async () => {
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("Conectado a MongoDB Atlas");
+  } catch (error) {
+    console.error("Error al conectar a MongoDB:", error);
+    process.exit(1);
   }
-});
-
-export default client;
+};
